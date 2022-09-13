@@ -53,7 +53,7 @@ namespace Metalancer
             io.KeyMap[(int)ImGuiKey.Space] = (int)Key.SPACE;
             io.KeyMap[(int)ImGuiKey.Enter] = (int)Key.ENTER;
             io.KeyMap[(int)ImGuiKey.Escape] = (int)Key.ESCAPE;
-            io.KeyMap[(int)ImGuiKey.KeyPadEnter] = (int)Key.KP_ENTER;
+            io.KeyMap[(int)ImGuiKey.KeypadEnter] = (int)Key.KP_ENTER;
             io.KeyMap[(int)ImGuiKey.A] = (int)Key.A;
             io.KeyMap[(int)ImGuiKey.C] = (int)Key.C;
             io.KeyMap[(int)ImGuiKey.V] = (int)Key.V;

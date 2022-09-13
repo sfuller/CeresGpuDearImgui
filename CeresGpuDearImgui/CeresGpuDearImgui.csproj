@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
         <Nullable>enable</Nullable>
         <!-- Null-related warnings are errors -->
         <WarningsAsErrors>CS8603,CS8618,CS8600,CS8625,CS8604,CS8602,CS8634</WarningsAsErrors>
+        <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
     </PropertyGroup>
 
     <ItemGroup>
@@ -14,7 +14,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="ImGui.NET" Version="1.78.0" />
+      <PackageReference Include="ImGui.NET" Version="1.87.3" />
     </ItemGroup>
 
     <ItemGroup>
