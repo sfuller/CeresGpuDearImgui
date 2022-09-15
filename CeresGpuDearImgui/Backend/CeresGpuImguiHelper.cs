@@ -25,7 +25,7 @@ namespace CeresGpuDearImgui.Backend
             
             ImGui.StyleColorsDark();
 
-            _imguiBackend = new ImGuiBackend(window, true, Api.OpenGL, io);
+            _imguiBackend = new ImGuiBackend(window, true, io);
             _imguiRenderer = new ImGuiRenderer(renderer, shaderManager);
             
             _imguiRenderer.Setup(ImGui.GetIO());
