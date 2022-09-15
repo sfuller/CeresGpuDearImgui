@@ -7,33 +7,17 @@ namespace Metalancer
 {
     public sealed class ImGuiBackend : IDisposable
     {
-        //private GCHandle _handle;
-
         private ImGuiIOPtr _io;
         private readonly GLFWWindow _window;
         private double _time;
         private readonly bool[] _mouseJustPressed = new bool[(int)ImGuiMouseCursor.COUNT];
         private readonly IGLFWCursor[] _mouseCursors = new IGLFWCursor[(int)ImGuiMouseCursor.COUNT];
-        private bool _installedCallbacks;
-        
-        
-        // Chain GLFW callbacks: our callbacks will call the user's previously installed callbacks, if any.
-        // GLFWwindowfocusfun      PrevUserCallbackWindowFocus;
-        // GLFWcursorenterfun      PrevUserCallbackCursorEnter;
-        // GLFWmousebuttonfun      PrevUserCallbackMousebutton;
-        // GLFWscrollfun           PrevUserCallbackScroll;
-        // GLFWkeyfun              PrevUserCallbackKey;
-        // GLFWcharfun             PrevUserCallbackChar;
-        // GLFWmonitorfun          PrevUserCallbackMonitor;
-        
-        public ImGuiBackend(GLFWWindow window, bool installCallbacks, Api clientApi, ImGuiIOPtr io)
+
+        public ImGuiBackend(GLFWWindow window, bool installCallbacks, ImGuiIOPtr io)
         {
-            //_handle = GCHandle.Alloc(this, GCHandleType.Normal);
             _io = io;
             _window = window;
-            _installedCallbacks = installCallbacks;
-
-            //io.UserData = GCHandle.ToIntPtr(_handle);
+            
             io.BackendFlags |= ImGuiBackendFlags.HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
             io.BackendFlags |= ImGuiBackendFlags.HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
             
