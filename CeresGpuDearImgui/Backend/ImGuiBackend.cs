@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using CeresGLFW;
 using ImGuiNET;
 
@@ -12,6 +14,15 @@ namespace Metalancer
         private double _time;
         private readonly bool[] _mouseJustPressed = new bool[(int)ImGuiMouseCursor.COUNT];
         private readonly IGLFWCursor[] _mouseCursors = new IGLFWCursor[(int)ImGuiMouseCursor.COUNT];
+        
+        private unsafe delegate void* GetClipboardDelegate(IntPtr userData);
+        private unsafe delegate void SetClipboardDelegate(IntPtr useradata, void* str);
+
+        // Need to hold references to these delegates so that they aren't garbaged collected while being used by ImGui
+        // ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
+        private readonly GetClipboardDelegate _getClipboardDelegate;
+        private readonly SetClipboardDelegate _setClipboardDelegate;
+        // ReSharper restore PrivateFieldCanBeConvertedToLocalVariable
 
         public ImGuiBackend(GLFWWindow window, bool installCallbacks, ImGuiIOPtr io)
         {
@@ -20,34 +31,13 @@ namespace Metalancer
             
             io.BackendFlags |= ImGuiBackendFlags.HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
             io.BackendFlags |= ImGuiBackendFlags.HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
-            
-            // Keyboard mapping. Dear ImGui will use those indices to peek into the io.KeysDown[] array.
-            io.KeyMap[(int)ImGuiKey.Tab] = (int)Key.TAB;
-            io.KeyMap[(int)ImGuiKey.LeftArrow] = (int)Key.LEFT;
-            io.KeyMap[(int)ImGuiKey.RightArrow] = (int)Key.RIGHT;
-            io.KeyMap[(int)ImGuiKey.UpArrow] = (int)Key.UP;
-            io.KeyMap[(int)ImGuiKey.DownArrow] = (int)Key.DOWN;
-            io.KeyMap[(int)ImGuiKey.PageUp] = (int)Key.PAGE_UP;
-            io.KeyMap[(int)ImGuiKey.PageDown] = (int)Key.PAGE_DOWN;
-            io.KeyMap[(int)ImGuiKey.Home] = (int)Key.HOME;
-            io.KeyMap[(int)ImGuiKey.End] = (int)Key.END;
-            io.KeyMap[(int)ImGuiKey.Insert] = (int)Key.INSERT;
-            io.KeyMap[(int)ImGuiKey.Delete] = (int)Key.DELETE;
-            io.KeyMap[(int)ImGuiKey.Backspace] = (int)Key.BACKSPACE;
-            io.KeyMap[(int)ImGuiKey.Space] = (int)Key.SPACE;
-            io.KeyMap[(int)ImGuiKey.Enter] = (int)Key.ENTER;
-            io.KeyMap[(int)ImGuiKey.Escape] = (int)Key.ESCAPE;
-            io.KeyMap[(int)ImGuiKey.KeypadEnter] = (int)Key.KP_ENTER;
-            io.KeyMap[(int)ImGuiKey.A] = (int)Key.A;
-            io.KeyMap[(int)ImGuiKey.C] = (int)Key.C;
-            io.KeyMap[(int)ImGuiKey.V] = (int)Key.V;
-            io.KeyMap[(int)ImGuiKey.X] = (int)Key.X;
-            io.KeyMap[(int)ImGuiKey.Y] = (int)Key.Y;
-            io.KeyMap[(int)ImGuiKey.Z] = (int)Key.Z;
-            
-            
-            // io.SetClipboardTextFn = ImGui_ImplGlfw_SetClipboardText;
-            // io.GetClipboardTextFn = ImGui_ImplGlfw_GetClipboardText; 
+
+            unsafe {
+                _getClipboardDelegate = GetClipboardText;
+                _setClipboardDelegate = SetClipboardText;
+            }
+            io.GetClipboardTextFn = Marshal.GetFunctionPointerForDelegate(_getClipboardDelegate);
+            io.SetClipboardTextFn = Marshal.GetFunctionPointerForDelegate(_setClipboardDelegate);
             // io.ClipboardUserData = GCHandle.ToIntPtr(_handle);
             
 // #if defined(_WIN32)
@@ -92,7 +82,8 @@ namespace Metalancer
         
         private void ReleaseUnmanagedResources()
         {
-            //_handle.Free();
+            _io.GetClipboardTextFn = IntPtr.Zero;
+            _io.SetClipboardTextFn = IntPtr.Zero;
         }
 
         public void Dispose()
@@ -128,7 +119,7 @@ namespace Metalancer
         //     io.AddFocusEvent(focused != 0);
         // }
         
-        private void MouseButtonCallback(int button, InputAction action, int mods)
+        private void MouseButtonCallback(int button, InputAction action, Mod mods)
         {
             if (action == InputAction.Press && button >= 0 && button < _mouseJustPressed.Length) {
                 _mouseJustPressed[button] = true;
@@ -140,27 +131,62 @@ namespace Metalancer
             _io.MouseWheelH += (float)xoffset;
             _io.MouseWheel += (float)yoffset;
         }
-        
-        private void KeyCallback(Key key, int scancode, InputAction action, int mods)
+
+        private void KeyCallback(Key key, int scancode, InputAction action, Mod mods)
         {
-            if (key >= 0 && (int)key < _io.KeysDown.Count) {
-                if (action == InputAction.Press) {
-                    _io.KeysDown[(int)key] = true;
-                }
-                if (action == InputAction.Release) {
-                    _io.KeysDown[(int)key] = false;
-                }
+            if (action != InputAction.Press && action != InputAction.Release) {
+                return;
             }
 
-            // Modifiers are not reliable across systems
-            _io.KeyCtrl = _io.KeysDown[(int)Key.LEFT_CONTROL] || _io.KeysDown[(int)Key.RIGHT_CONTROL];
-            _io.KeyShift = _io.KeysDown[(int)Key.LEFT_SHIFT] || _io.KeysDown[(int)Key.RIGHT_SHIFT];
-            _io.KeyAlt = _io.KeysDown[(int)Key.LEFT_ALT] || _io.KeysDown[(int)Key.RIGHT_ALT];
-//#ifdef _WIN32
-            _io.KeySuper = false;
-//#else
-//            io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
-//#endif
+            UpdateKeyModifiers(mods);
+
+            Key keycode = TranslateUntranslatedKey(key, scancode);
+
+            ImGuiIOPtr io = ImGui.GetIO();
+            ImGuiKey imgui_key = KeyToImGuiKey(keycode);
+            io.AddKeyEvent(imgui_key, action == InputAction.Press);
+            io.SetKeyEventNativeData(imgui_key, (int)keycode, scancode); // To support legacy indexing (<1.87 user code)
+        }
+
+        private void UpdateKeyModifiers(Mod mods)
+        {
+            ImGuiIOPtr io = ImGui.GetIO();
+            io.AddKeyEvent(ImGuiKey.ModCtrl, (mods & Mod.CONTROL) != 0);
+            io.AddKeyEvent(ImGuiKey.ModShift, (mods & Mod.SHIFT) != 0);
+            io.AddKeyEvent(ImGuiKey.ModAlt, (mods & Mod.ALT) != 0);
+            io.AddKeyEvent(ImGuiKey.ModSuper, (mods & Mod.SUPER) != 0);
+        }
+        
+        private static readonly Key[] char_keys = { Key.GRAVE_ACCENT, Key.MINUS, Key.EQUAL, Key.LEFT_BRACKET, Key.RIGHT_BRACKET, Key.BACKSLASH, Key.COMMA, Key.SEMICOLON, Key.APOSTROPHE, Key.PERIOD, Key.SLASH };
+
+        static Key TranslateUntranslatedKey(Key key, int scancode)
+        {
+            // GLFW 3.1+ attempts to "untranslate" keys, which goes the opposite of what every other framework does, making using lettered shortcuts difficult.
+            // (It had reasons to do so: namely GLFW is/was more likely to be used for WASD-type game controls rather than lettered shortcuts, but IHMO the 3.1 change could have been done differently)
+            // See https://github.com/glfw/glfw/issues/1502 for details.
+            // Adding a workaround to undo this (so our keys are translated->untranslated->translated, likely a lossy process).
+            // This won't cover edge cases but this is at least going to cover common cases.
+            if (key >= Key.KP_0 && key <= Key.KP_EQUAL) {
+                return key;
+            }
+            
+            string? key_name = GLFW.GetKeyName(key, scancode);
+            if (key_name != null && key_name.Length == 1 && key_name[0] != 0)
+            {
+                const string char_names = "`-=[]\\,;\'./";
+                Debug.Assert(char_keys.Length == char_names.Length);
+                if (key_name[0] >= '0' && key_name[0] <= '9')               { key = Key.NUM_0 + (key_name[0] - '0'); }
+                else if (key_name[0] >= 'A' && key_name[0] <= 'Z')          { key = Key.A + (key_name[0] - 'A'); } 
+                else {
+                    int index = char_names.IndexOf(key_name[0]);
+                    if (index > 0) {
+                        key = char_keys[index];
+                    }
+                }
+            }
+            // if (action == GLFW_PRESS) printf("key %d scancode %d name '%s'\n", key, scancode, key_name);
+
+            return key;
         }
         
         private void CharCallback(uint c)
@@ -330,6 +356,130 @@ namespace Metalancer
 
             // Update game controllers (if enabled and available)
             UpdateGamepads();
+        }
+        
+        // TODO: Clipboard Perf: Prevent marshalling of clipboard data to c# string (UTF-16) and then back again
+
+        private unsafe void* GetClipboardText(IntPtr userData)
+        {
+            return _window.GetClipboardStringRaw();
+        }
+
+        private unsafe void SetClipboardText(IntPtr userData, void* str)
+        {
+            _window.SetClipboardStringRaw(str);
+        }
+        
+        private ImGuiKey KeyToImGuiKey(Key key)
+        {
+            return key switch {
+                Key.TAB => ImGuiKey.Tab
+                , Key.LEFT => ImGuiKey.LeftArrow
+                , Key.RIGHT => ImGuiKey.RightArrow
+                , Key.UP => ImGuiKey.UpArrow
+                , Key.DOWN => ImGuiKey.DownArrow
+                , Key.PAGE_UP => ImGuiKey.PageUp
+                , Key.PAGE_DOWN => ImGuiKey.PageDown
+                , Key.HOME => ImGuiKey.Home
+                , Key.END => ImGuiKey.End
+                , Key.INSERT => ImGuiKey.Insert
+                , Key.DELETE => ImGuiKey.Delete
+                , Key.BACKSPACE => ImGuiKey.Backspace
+                , Key.SPACE => ImGuiKey.Space
+                , Key.ENTER => ImGuiKey.Enter
+                , Key.ESCAPE => ImGuiKey.Escape
+                , Key.APOSTROPHE => ImGuiKey.Apostrophe
+                , Key.COMMA => ImGuiKey.Comma
+                , Key.MINUS => ImGuiKey.Minus
+                , Key.PERIOD => ImGuiKey.Period
+                , Key.SLASH => ImGuiKey.Slash
+                , Key.SEMICOLON => ImGuiKey.Semicolon
+                , Key.EQUAL => ImGuiKey.Equal
+                , Key.LEFT_BRACKET => ImGuiKey.LeftBracket
+                , Key.BACKSLASH => ImGuiKey.Backslash
+                , Key.RIGHT_BRACKET => ImGuiKey.RightBracket
+                , Key.GRAVE_ACCENT => ImGuiKey.GraveAccent
+                , Key.CAPS_LOCK => ImGuiKey.CapsLock
+                , Key.SCROLL_LOCK => ImGuiKey.ScrollLock
+                , Key.NUM_LOCK => ImGuiKey.NumLock
+                , Key.PRINT_SCREEN => ImGuiKey.PrintScreen
+                , Key.PAUSE => ImGuiKey.Pause
+                , Key.KP_0 => ImGuiKey.Keypad0
+                , Key.KP_1 => ImGuiKey.Keypad1
+                , Key.KP_2 => ImGuiKey.Keypad2
+                , Key.KP_3 => ImGuiKey.Keypad3
+                , Key.KP_4 => ImGuiKey.Keypad4
+                , Key.KP_5 => ImGuiKey.Keypad5
+                , Key.KP_6 => ImGuiKey.Keypad6
+                , Key.KP_7 => ImGuiKey.Keypad7
+                , Key.KP_8 => ImGuiKey.Keypad8
+                , Key.KP_9 => ImGuiKey.Keypad9
+                , Key.KP_DECIMAL => ImGuiKey.KeypadDecimal
+                , Key.KP_DIVIDE => ImGuiKey.KeypadDivide
+                , Key.KP_MULTIPLY => ImGuiKey.KeypadMultiply
+                , Key.KP_SUBTRACT => ImGuiKey.KeypadSubtract
+                , Key.KP_ADD => ImGuiKey.KeypadAdd
+                , Key.KP_ENTER => ImGuiKey.KeypadEnter
+                , Key.KP_EQUAL => ImGuiKey.KeypadEqual
+                , Key.LEFT_SHIFT => ImGuiKey.LeftShift
+                , Key.LEFT_CONTROL => ImGuiKey.LeftCtrl
+                , Key.LEFT_ALT => ImGuiKey.LeftAlt
+                , Key.LEFT_SUPER => ImGuiKey.LeftSuper
+                , Key.RIGHT_SHIFT => ImGuiKey.RightShift
+                , Key.RIGHT_CONTROL => ImGuiKey.RightCtrl
+                , Key.RIGHT_ALT => ImGuiKey.RightAlt
+                , Key.RIGHT_SUPER => ImGuiKey.RightSuper
+                , Key.MENU => ImGuiKey.Menu
+                , Key.NUM_0 => ImGuiKey._0
+                , Key.NUM_1 => ImGuiKey._1
+                , Key.NUM_2 => ImGuiKey._2
+                , Key.NUM_3 => ImGuiKey._3
+                , Key.NUM_4 => ImGuiKey._4
+                , Key.NUM_5 => ImGuiKey._5
+                , Key.NUM_6 => ImGuiKey._6
+                , Key.NUM_7 => ImGuiKey._7
+                , Key.NUM_8 => ImGuiKey._8
+                , Key.NUM_9 => ImGuiKey._9
+                , Key.A => ImGuiKey.A
+                , Key.B => ImGuiKey.B
+                , Key.C => ImGuiKey.C
+                , Key.D => ImGuiKey.D
+                , Key.E => ImGuiKey.E
+                , Key.F => ImGuiKey.F
+                , Key.G => ImGuiKey.G
+                , Key.H => ImGuiKey.H
+                , Key.I => ImGuiKey.I
+                , Key.J => ImGuiKey.J
+                , Key.K => ImGuiKey.K
+                , Key.L => ImGuiKey.L
+                , Key.M => ImGuiKey.M
+                , Key.N => ImGuiKey.N
+                , Key.O => ImGuiKey.O
+                , Key.P => ImGuiKey.P
+                , Key.Q => ImGuiKey.Q
+                , Key.R => ImGuiKey.R
+                , Key.S => ImGuiKey.S
+                , Key.T => ImGuiKey.T
+                , Key.U => ImGuiKey.U
+                , Key.V => ImGuiKey.V
+                , Key.W => ImGuiKey.W
+                , Key.X => ImGuiKey.X
+                , Key.Y => ImGuiKey.Y
+                , Key.Z => ImGuiKey.Z
+                , Key.F1 => ImGuiKey.F1
+                , Key.F2 => ImGuiKey.F2
+                , Key.F3 => ImGuiKey.F3
+                , Key.F4 => ImGuiKey.F4
+                , Key.F5 => ImGuiKey.F5
+                , Key.F6 => ImGuiKey.F6
+                , Key.F7 => ImGuiKey.F7
+                , Key.F8 => ImGuiKey.F8
+                , Key.F9 => ImGuiKey.F9
+                , Key.F10 => ImGuiKey.F10
+                , Key.F11 => ImGuiKey.F11
+                , Key.F12 => ImGuiKey.F12
+                , _ => ImGuiKey.None
+            };
         }
     }
 }
