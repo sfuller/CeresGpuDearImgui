@@ -23,6 +23,8 @@ namespace Metalancer.ImGuiIntegration
         private readonly IBuffer<ImGuiShader.VertUniforms> _uniformBuffer;
         private ITexture _texture;
 
+        private ITexture _nullTexture;
+
         public ImGuiRenderer(IRenderer renderer, ShaderManager shaderManager)
         {
             _renderer = renderer;
@@ -54,6 +56,8 @@ namespace Metalancer.ImGuiIntegration
             //     gl.Disable(EnableCap.PRIMITIVE_RESTART);
             // }
 
+            _nullTexture = renderer.CreateTexture();
+            _nullTexture.Set(new byte[4], 1, 1, InputFormat.R8G8B8A8_UNORM);
         }
         
         //public ImGuiRenderer(ImGuiIOPtr io, GL gl, string? glsl_version)
@@ -273,7 +277,12 @@ namespace Metalancer.ImGuiIntegration
 
                         // TODO: USE A PLACEHOLDER TEXTURE WHEN WEAK TEXTURE FROM HANDLE IS NO LONGER AVAILABLE
                         if (GCHandle.FromIntPtr(pcmd.TextureId).Target is ITexture texture) {
+                            if (texture.Width == 0 || texture.Height == 0) {
+                                texture = _nullTexture;
+                            }
                             shaderInstance.SetTexture(texture);    
+                        } else {
+                            shaderInstance.SetTexture(_nullTexture);
                         }
                         
                         SetupRenderState(encoder, shaderInstance, fb_width, fb_height);
