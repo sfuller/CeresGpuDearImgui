@@ -18,9 +18,6 @@
       <PackageReference Include="ImGui.NET" Version="1.87.3" />
     </ItemGroup>
 
-    <ItemGroup>
-        <EmbeddedResource Include="**\*.spv" />
-        <EmbeddedResource Include="**\*.metal" />
-    </ItemGroup>
+    <Import Project="$(MSBuildProjectDirectory)\..\..\CeresGpu\CeresGPU.targets" />
 
 </Project>
