@@ -2,8 +2,8 @@ using System;
 using CeresGLFW;
 using ImGuiNET;
 using Metalancer;
-using Metalancer.Graphics;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics;
+using CeresGpu.Graphics.Shaders;
 using Metalancer.ImGuiIntegration;
 
 namespace CeresGpuDearImgui.Backend

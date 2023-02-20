@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using ImGuiNET;
-using Metalancer.Graphics;
+using CeresGpu.Graphics;
 
 namespace CeresGpuDearImgui.Util;
 

@@ -4,8 +4,8 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using CeresGpuDearImgui.Backend;
 using ImGuiNET;
-using Metalancer.Graphics;
-using Metalancer.Graphics.Shaders;
+using CeresGpu.Graphics;
+using CeresGpu.Graphics.Shaders;
 using Metalancer.Renderers;
 using WizKid.Imgui;
 
