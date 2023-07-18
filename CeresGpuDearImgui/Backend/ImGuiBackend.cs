@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using CeresGLFW;
 using ImGuiNET;
 
-namespace Metalancer
+namespace CeresGpuDearImgui
 {
     public sealed class ImGuiBackend : IDisposable
     {
