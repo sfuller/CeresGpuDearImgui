@@ -6,7 +6,6 @@ using CeresGpuDearImgui.Backend;
 using ImGuiNET;
 using CeresGpu.Graphics;
 using CeresGpu.Graphics.Shaders;
-using Metalancer.Renderers;
 using WizKid.Imgui;
 
 namespace Metalancer.ImGuiIntegration
@@ -209,7 +208,7 @@ namespace Metalancer.ImGuiIntegration
 
             // Render command lists
             for (int n = 0; n < draw_data.CmdListsCount; n++) {
-                ImDrawListPtr cmd_list = draw_data.CmdListsRange[n]; // draw_data.CmdLists[n];
+                ImDrawListPtr cmd_list = draw_data.CmdLists[n];
 
                 // Upload vertex/index buffers
                 IBuffer<ImGuiShader.Vertex> vertexBuffer = GetVertexBuffer(cmd_list.VtxBuffer.Size);
