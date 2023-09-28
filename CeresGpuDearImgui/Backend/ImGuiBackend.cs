@@ -151,10 +151,11 @@ namespace CeresGpuDearImgui
         private void UpdateKeyModifiers(Mod mods)
         {
             ImGuiIOPtr io = ImGui.GetIO();
-            io.AddKeyEvent(ImGuiKey.ModCtrl, (mods & Mod.CONTROL) != 0);
-            io.AddKeyEvent(ImGuiKey.ModShift, (mods & Mod.SHIFT) != 0);
-            io.AddKeyEvent(ImGuiKey.ModAlt, (mods & Mod.ALT) != 0);
-            io.AddKeyEvent(ImGuiKey.ModSuper, (mods & Mod.SUPER) != 0);
+            
+            io.AddKeyEvent(ImGuiKey.ImGuiMod_Ctrl, (mods & Mod.CONTROL) != 0);
+            io.AddKeyEvent(ImGuiKey.ImGuiMod_Shift, (mods & Mod.SHIFT) != 0);
+            io.AddKeyEvent(ImGuiKey.ImGuiMod_Alt, (mods & Mod.ALT) != 0);
+            io.AddKeyEvent(ImGuiKey.ImGuiMod_Super, (mods & Mod.SUPER) != 0);
         }
         
         private static readonly Key[] char_keys = { Key.GRAVE_ACCENT, Key.MINUS, Key.EQUAL, Key.LEFT_BRACKET, Key.RIGHT_BRACKET, Key.BACKSLASH, Key.COMMA, Key.SEMICOLON, Key.APOSTROPHE, Key.PERIOD, Key.SLASH };
