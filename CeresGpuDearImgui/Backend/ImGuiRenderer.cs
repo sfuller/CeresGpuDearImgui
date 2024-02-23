@@ -347,6 +347,7 @@ namespace Metalancer.ImGuiIntegration
             // Upload texture to graphics system
             ITexture texture = renderer.CreateTexture();
             texture.Set(pixels, (uint)width, (uint)height, InputFormat.R8G8B8A8_UNORM);
+            texture.SetFilter(MinMagFilter.Linear, MinMagFilter.Linear);
 
             // Store our identifier
             IntPtr handle = GCHandle.ToIntPtr(GCHandle.Alloc(texture, GCHandleType.Weak));

@@ -201,7 +201,7 @@ namespace CeresGpuDearImgui
             Vector2 mouse_pos_prev = io.MousePos;
             io.MousePos = new Vector2(-float.MaxValue, -float.MaxValue);
 
-            // GLFW's behaviour between macOS and everything else if broken.
+            // GLFW's behaviour between macOS and everything else is broken.
             int windowSizeX, windowSizeY;
             _window.GetSize(out windowSizeX, out windowSizeY);
             
