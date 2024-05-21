@@ -21,10 +21,11 @@ namespace Metalancer.ImGuiIntegration
         private readonly ImGuiShader _shader;
         private readonly IBuffer<ImGuiShader.VertUniforms> _uniformBuffer;
         private ITexture _texture;
+        private ISampler _textureSampler;
 
         private ITexture _nullTexture;
 
-        public ImGuiRenderer(IRenderer renderer, ShaderManager shaderManager)
+        public ImGuiRenderer(IRenderer renderer, ShaderManager shaderManager, ISampler textureSampler)
         {
             _renderer = renderer;
             _backendName = Marshal.StringToHGlobalAnsi("imgui_impl_opengl3_ceres");
@@ -49,6 +50,7 @@ namespace Metalancer.ImGuiIntegration
             _pipeline = renderer.CreatePipeline(pd, _shader);
             _uniformBuffer = renderer.CreateStreamingBuffer<ImGuiShader.VertUniforms>(1);
             _texture = CreateFontsTexture(renderer);
+            _textureSampler = textureSampler;
 
             // gl.Enable(EnableCap.SCISSOR_TEST);
             // if (GlVersion >= 310) {
@@ -273,13 +275,14 @@ namespace Metalancer.ImGuiIntegration
                         ImGuiShader.Instance shaderInstance = GetShaderInstance();
                         shaderInstance.SetVertex(vertexBuffer);
                         shaderInstance.SetVertUniforms(_uniformBuffer);
+                        shaderInstance.SetTextureSampler(_textureSampler);
 
                         // TODO: USE A PLACEHOLDER TEXTURE WHEN WEAK TEXTURE FROM HANDLE IS NO LONGER AVAILABLE
                         if (GCHandle.FromIntPtr(pcmd.TextureId).Target is ITexture texture) {
                             if (texture.Width == 0 || texture.Height == 0) {
                                 texture = _nullTexture;
                             }
-                            shaderInstance.SetTexture(texture);    
+                            shaderInstance.SetTexture(texture);
                         } else {
                             shaderInstance.SetTexture(_nullTexture);
                         }
@@ -347,7 +350,6 @@ namespace Metalancer.ImGuiIntegration
             // Upload texture to graphics system
             ITexture texture = renderer.CreateTexture();
             texture.Set(pixels, (uint)width, (uint)height, InputFormat.R8G8B8A8_UNORM);
-            texture.SetFilter(MinMagFilter.Linear, MinMagFilter.Linear);
 
             // Store our identifier
             IntPtr handle = GCHandle.ToIntPtr(GCHandle.Alloc(texture, GCHandleType.Weak));

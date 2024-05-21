@@ -17,7 +17,7 @@ namespace CeresGpuDearImgui.Backend
         private readonly ImGuiBackend _imguiBackend;
         private readonly ImGuiRenderer _imguiRenderer;
 
-        public CeresGpuImguiHelper(IRenderer renderer, GLFWWindow window, ShaderManager shaderManager)
+        public CeresGpuImguiHelper(IRenderer renderer, GLFWWindow window, ShaderManager shaderManager, ISampler textureSampler)
         {
             _imguiContext = ImGui.CreateContext();
             ImGuiIOPtr io = ImGui.GetIO();
@@ -26,7 +26,7 @@ namespace CeresGpuDearImgui.Backend
             ImGui.StyleColorsDark();
 
             _imguiBackend = new ImGuiBackend(window, true, io);
-            _imguiRenderer = new ImGuiRenderer(renderer, shaderManager);
+            _imguiRenderer = new ImGuiRenderer(renderer, shaderManager, textureSampler);
             
             _imguiRenderer.Setup(ImGui.GetIO());
         }
