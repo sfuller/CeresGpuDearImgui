@@ -261,71 +261,76 @@ namespace CeresGpuDearImgui
                 _window.SetCursorMode(CursorMode.Normal);
             }
         }
-
-        private void MAP_BUTTON(ImGuiIOPtr io, bool[] buttons, ImGuiNavInput input, int button)
+        
+        private static void MAP_BUTTON(ImGuiIOPtr io, in GamepadState gamepad, ImGuiKey key, GamepadButton button, int expectedButtonIndex)
         {
-            if (buttons.Length > button && buttons[button]) {
-                io.NavInputs[(int)input] = 1.0f;
+            _ = expectedButtonIndex;
+            int buttonIndex = (int)button;
+            if (gamepad.Buttons.Length > buttonIndex) {
+                io.AddKeyEvent(key, gamepad.Buttons[buttonIndex] != 0);
             }
         }
 
-        private void MAP_ANALOG(ImGuiIOPtr io, float[] axes, ImGuiNavInput input, int axis, float v0, float v1)
+        private static void MAP_ANALOG(ImGuiIOPtr io, in GamepadState gamepad, ImGuiKey key, GamepadAxis axis, int expectedAxis, float v0, float v1)
         {
-            float v = (axes.Length > axis) ? axes[axis] : v0;
+            _ = expectedAxis;
+            int axisIndex = (int)axis;
+            float v = (gamepad.Axes.Length > axisIndex) ? gamepad.Axes[axisIndex] : v0;
             v = (v - v0) / (v1 - v0);
+            if (v < 0.0f) {
+                v = 0f;
+            }
             if (v > 1.0f) {
                 v = 1.0f;
             }
-            if (io.NavInputs[(int)input] < v) {
-                io.NavInputs[(int)input] = v;
-            }
+            
+            io.AddKeyAnalogEvent(key, v > 0.1f, v);
         }
         
         private void UpdateGamepads()
         {
             ImGuiIOPtr io = ImGui.GetIO();
-            
-            // TODO: Make this faster? Original: memset(io.NavInputs, 0, sizeof(io.NavInputs));
-            for (int i = 0, ilen = io.NavInputs.Count; i < ilen; ++i) {
-                io.NavInputs[i] = 0;
-            }
 
             if ((io.ConfigFlags & ImGuiConfigFlags.NavEnableGamepad) == 0) {
                 return;
             }
 
-            // Update gamepad inputs
-            // TODO: Make this faster? Does C# let us inline? Maybe the AOT/JIT already is? Should check.
-            // TODO: WE SHOULD JUST USE CALLBACKS?
-            // #define MAP_BUTTON(NAV_NO, BUTTON_NO)       { if (buttons_count > BUTTON_NO && buttons[BUTTON_NO] == GLFW_PRESS) io.NavInputs[NAV_NO] = 1.0f; }
-            // #define MAP_ANALOG(NAV_NO, AXIS_NO, V0, V1) { float v = (axes_count > AXIS_NO) ? axes[AXIS_NO] : V0; v = (v - V0) / (V1 - V0); if (v > 1.0f) v = 1.0f; if (io.NavInputs[NAV_NO] < v) io.NavInputs[NAV_NO] = v; }
-            // TODO: THIS IS VERY EXPENSIVE FOR C#. ALLOCATES AN ARRAY EVERY FRAME!
-            // Need to have a callback for when the joystick changes and keep the array around until the joystick has changed.
-            float[] axes = GLFW.GetJoystickAxes(0);
-            bool[] buttons = GLFW.GetJoystickButtons(0);
-            MAP_BUTTON(io, buttons, ImGuiNavInput.Activate,   0);     // Cross / A
-            MAP_BUTTON(io, buttons, ImGuiNavInput.Cancel,     1);     // Circle / B
-            MAP_BUTTON(io, buttons, ImGuiNavInput.Menu,       2);     // Square / X
-            MAP_BUTTON(io, buttons, ImGuiNavInput.Input,      3);     // Triangle / Y
-            MAP_BUTTON(io, buttons, ImGuiNavInput.DpadLeft,   13);    // D-Pad Left
-            MAP_BUTTON(io, buttons, ImGuiNavInput.DpadRight,  11);    // D-Pad Right
-            MAP_BUTTON(io, buttons, ImGuiNavInput.DpadUp,     10);    // D-Pad Up
-            MAP_BUTTON(io, buttons, ImGuiNavInput.DpadDown,   12);    // D-Pad Down
-            MAP_BUTTON(io, buttons, ImGuiNavInput.FocusPrev,  4);     // L1 / LB
-            MAP_BUTTON(io, buttons, ImGuiNavInput.FocusNext,  5);     // R1 / RB
-            MAP_BUTTON(io, buttons, ImGuiNavInput.TweakSlow,  4);     // L1 / LB
-            MAP_BUTTON(io, buttons, ImGuiNavInput.TweakFast,  5);     // R1 / RB
-            MAP_ANALOG(io, axes, ImGuiNavInput.LStickLeft, 0,  -0.3f,  -0.9f);
-            MAP_ANALOG(io, axes, ImGuiNavInput.LStickRight,0,  +0.3f,  +0.9f);
-            MAP_ANALOG(io, axes, ImGuiNavInput.LStickUp,   1,  +0.3f,  +0.9f);
-            MAP_ANALOG(io, axes, ImGuiNavInput.LStickDown, 1,  -0.3f,  -0.9f);
-            // #undef MAP_BUTTON
-            // #undef MAP_ANALOG
-            if (axes.Length > 0 && buttons.Length > 0) {
-                io.BackendFlags |= ImGuiBackendFlags.HasGamepad;
-            } else {
-                io.BackendFlags &= ~ImGuiBackendFlags.HasGamepad;
+            io.BackendFlags &= ~ImGuiBackendFlags.HasGamepad;
+            
+            // TODO: Marshalling here might be expensive, it allocates new arrays and blits to these arrays every call.
+            // Gamepad pressed/released callbacks might be better overall, orwe could alter the GLFW binding to take a pre-allocated array.
+            if (!GLFW.GetGamepadState(0, out GamepadState gamepad)) {
+                return;
             }
+
+            io.BackendFlags |= ImGuiBackendFlags.HasGamepad;
+
+            // Update gamepad inputs
+            // Does C# let us inline the MAP_BUTTON/MAP_ANALOG calls? Maybe the AOT/JIT already is? Should check.
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadStart,       GamepadButton.START,          7);
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadBack,        GamepadButton.BACK,           6);
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadFaceLeft,    GamepadButton.X,              2);     // Xbox X, PS Square
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadFaceRight,   GamepadButton.B,              1);     // Xbox B, PS Circle
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadFaceUp,      GamepadButton.Y,              3);     // Xbox Y, PS Triangle
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadFaceDown,    GamepadButton.A,              0);     // Xbox A, PS Cross
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadDpadLeft,    GamepadButton.DPAD_LEFT,      13);
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadDpadRight,   GamepadButton.DPAD_RIGHT,     11);
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadDpadUp,      GamepadButton.DPAD_UP,        10);
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadDpadDown,    GamepadButton.DPAD_DOWN,      12);
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadL1,          GamepadButton.LEFT_BUMPER,    4);
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadR1,          GamepadButton.RIGHT_BUMPER,   5);
+            MAP_ANALOG(io, gamepad, ImGuiKey.GamepadL2,          GamepadAxis.LEFT_TRIGGER,     4,      -0.75f,  +1.0f);
+            MAP_ANALOG(io, gamepad, ImGuiKey.GamepadR2,          GamepadAxis.RIGHT_TRIGGER,    5,      -0.75f,  +1.0f);
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadL3,          GamepadButton.LEFT_THUMB,     8);
+            MAP_BUTTON(io, gamepad, ImGuiKey.GamepadR3,          GamepadButton.RIGHT_THUMB,    9);
+            MAP_ANALOG(io, gamepad, ImGuiKey.GamepadLStickLeft,  GamepadAxis.LEFT_X,           0,      -0.25f,  -1.0f);
+            MAP_ANALOG(io, gamepad, ImGuiKey.GamepadLStickRight, GamepadAxis.LEFT_X,           0,      +0.25f,  +1.0f);
+            MAP_ANALOG(io, gamepad, ImGuiKey.GamepadLStickUp,    GamepadAxis.LEFT_Y,           1,      -0.25f,  -1.0f);
+            MAP_ANALOG(io, gamepad, ImGuiKey.GamepadLStickDown,  GamepadAxis.LEFT_Y,           1,      +0.25f,  +1.0f);
+            MAP_ANALOG(io, gamepad, ImGuiKey.GamepadRStickLeft,  GamepadAxis.RIGHT_X,          2,      -0.25f,  -1.0f);
+            MAP_ANALOG(io, gamepad, ImGuiKey.GamepadRStickRight, GamepadAxis.RIGHT_X,          2,      +0.25f,  +1.0f);
+            MAP_ANALOG(io, gamepad, ImGuiKey.GamepadRStickUp,    GamepadAxis.RIGHT_Y,          3,      -0.25f,  -1.0f);
+            MAP_ANALOG(io, gamepad, ImGuiKey.GamepadRStickDown,  GamepadAxis.RIGHT_Y,          3,      +0.25f,  +1.0f);
         }
 
         public void NewFrame()
