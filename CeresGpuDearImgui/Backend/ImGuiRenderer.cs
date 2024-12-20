@@ -7,17 +7,19 @@ using ImGuiNET;
 using CeresGpu.Graphics;
 using CeresGpu.Graphics.Shaders;
 using WizKid.Imgui;
+using ShaderInstance = CeresGpuDearImgui.Backend.ImGuiShader.DefaultVertexLayoutInstance;
 
 namespace Metalancer.ImGuiIntegration
 {
     public sealed class ImGuiRenderer : IDisposable
     {
+        
         private readonly IRenderer _renderer;
         
         private bool _disposed;
         private IntPtr _backendName;
 
-        private readonly IPipeline<ImGuiShader> _pipeline;
+        private readonly IPipeline<ImGuiShader, ImGuiShader.DefaultVertexBufferLayout> _pipeline;
         private readonly ImGuiShader _shader;
         private readonly IBuffer<ImGuiShader.VertUniforms> _uniformBuffer;
         private ITexture _texture;
@@ -46,8 +48,7 @@ namespace Metalancer.ImGuiIntegration
             pd.DepthStencil.DepthWriteEnabled = false;
             pd.DepthStencil.FrontFaceStencil.StencilCompareFunction = CompareFunction.Always;
             
-            //pd = PipelineUtil.StandardPipeline;
-            _pipeline = renderer.CreatePipeline(pd, _shader);
+            _pipeline = renderer.CreatePipeline(pd, _shader, ImGuiShader.DefaultVertexBufferLayout.Instance);
             _uniformBuffer = renderer.CreateStreamingBuffer<ImGuiShader.VertUniforms>(1);
             _texture = CreateFontsTexture(renderer);
             _textureSampler = textureSampler;
@@ -128,7 +129,7 @@ namespace Metalancer.ImGuiIntegration
             });
         }
         
-        private void SetupRenderState(ICommandEncoder encoder, ImGuiShader.Instance shaderInstance, int fb_width, int fb_height)
+        private void SetupRenderState(ICommandEncoder encoder, ShaderInstance shaderInstance, int fb_width, int fb_height)
         {
             // Setup viewport, orthographic projection matrix
             // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayPos is (0,0) for single viewport apps.
@@ -142,7 +143,7 @@ namespace Metalancer.ImGuiIntegration
         {
             public readonly Stack<IBuffer<ImGuiShader.Vertex>> VertexBuffers = new();
             public readonly Stack<IBuffer<ushort>> IndexBuffers = new();
-            public readonly Stack<ImGuiShader.Instance> ShaderInstances = new();    
+            public readonly Stack<ShaderInstance> ShaderInstances = new();    
         }
 
         private Pool _unusedPool = new();
@@ -176,10 +177,10 @@ namespace Metalancer.ImGuiIntegration
             return buffer;
         }
 
-        private ImGuiShader.Instance GetShaderInstance()
+        private ShaderInstance GetShaderInstance()
         {
-            if (!_unusedPool.ShaderInstances.TryPop(out ImGuiShader.Instance? shaderInstance)) {
-                shaderInstance = new ImGuiShader.Instance(_renderer, _shader);
+            if (!_unusedPool.ShaderInstances.TryPop(out ShaderInstance? shaderInstance)) {
+                shaderInstance = new ShaderInstance(_renderer, _shader);
             }
             
             _usedPool.ShaderInstances.Push(shaderInstance);
@@ -272,8 +273,8 @@ namespace Metalancer.ImGuiIntegration
                         
                         encoder.SetScissor(new ScissorRect((int)coords.X, (int)coords.Y, (uint)coords.Z, (uint)coords.W));
 
-                        ImGuiShader.Instance shaderInstance = GetShaderInstance();
-                        shaderInstance.SetVertex(vertexBuffer);
+                        ShaderInstance shaderInstance = GetShaderInstance();
+                        shaderInstance.VertexBuffers.SetVertex(vertexBuffer);
                         shaderInstance.SetVertUniforms(_uniformBuffer);
                         shaderInstance.SetTextureSampler(_textureSampler);
 
