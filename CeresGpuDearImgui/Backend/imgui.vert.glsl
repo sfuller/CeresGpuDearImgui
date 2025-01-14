@@ -7,7 +7,7 @@ layout (location = 1) in vec2 UV;
 layout (location = 2) in uint Color; 
 
 // TODO: Push constants?
-layout (binding = 0) uniform VertUniforms {
+layout (set = 0, binding = 0) uniform VertUniforms {
     mat4 ProjMtx;
 } u;
 

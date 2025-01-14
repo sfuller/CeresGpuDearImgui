@@ -27,7 +27,7 @@ namespace Metalancer.ImGuiIntegration
 
         private ITexture _nullTexture;
 
-        public ImGuiRenderer(IRenderer renderer, ShaderManager shaderManager, ISampler textureSampler)
+        public ImGuiRenderer(IRenderer renderer, ShaderManager shaderManager, ISampler textureSampler, ReadOnlySpan<Type> supportedPassTypes)
         {
             _renderer = renderer;
             _backendName = Marshal.StringToHGlobalAnsi("imgui_impl_opengl3_ceres");
@@ -38,7 +38,8 @@ namespace Metalancer.ImGuiIntegration
             
             // Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled, polygon fill
             pd.Blend = true;
-            pd.BlendEquation = BlendEquation.FUNC_ADD;
+            pd.ColorBlendOp = BlendOp.ADD;
+            pd.AlphaBlendOp = BlendOp.ADD;
             pd.BlendFunction.SourceRGB = BlendingFactor.SRC_ALPHA;
             pd.BlendFunction.DestinationRGB = BlendingFactor.ONE_MINUS_SRC_ALPHA;
             pd.BlendFunction.SourceAlpha = BlendingFactor.ONE;
@@ -48,7 +49,7 @@ namespace Metalancer.ImGuiIntegration
             pd.DepthStencil.DepthWriteEnabled = false;
             pd.DepthStencil.FrontFaceStencil.StencilCompareFunction = CompareFunction.Always;
             
-            _pipeline = renderer.CreatePipeline(pd, _shader, ImGuiShader.DefaultVertexBufferLayout.Instance);
+            _pipeline = renderer.CreatePipeline(pd, supportedPassTypes, _shader, ImGuiShader.DefaultVertexBufferLayout.Instance);
             _uniformBuffer = renderer.CreateStreamingBuffer<ImGuiShader.VertUniforms>(1);
             _texture = CreateFontsTexture(renderer);
             _textureSampler = textureSampler;
@@ -59,7 +60,7 @@ namespace Metalancer.ImGuiIntegration
             // }
 
             _nullTexture = renderer.CreateTexture();
-            _nullTexture.Set(new byte[4], 1, 1, InputFormat.R8G8B8A8_UNORM);
+            _nullTexture.Set(new byte[4], 1, 1, ColorFormat.R8G8B8A8_UNORM);
         }
         
         //public ImGuiRenderer(ImGuiIOPtr io, GL gl, string? glsl_version)
@@ -295,7 +296,7 @@ namespace Metalancer.ImGuiIntegration
                             indexCount: pcmd.ElemCount,
                             instanceCount: 1,
                             firstIndex: pcmd.IdxOffset,
-                            vertexOffset: pcmd.VtxOffset,
+                            vertexOffset: (int)pcmd.VtxOffset,
                             firstInstance: 0
                         );
                     }
@@ -350,7 +351,7 @@ namespace Metalancer.ImGuiIntegration
 
             // Upload texture to graphics system
             ITexture texture = renderer.CreateTexture();
-            texture.Set(pixels, (uint)width, (uint)height, InputFormat.R8G8B8A8_UNORM);
+            texture.Set(pixels, (uint)width, (uint)height, ColorFormat.R8G8B8A8_UNORM);
 
             // Store our identifier
             IntPtr handle = GCHandle.ToIntPtr(GCHandle.Alloc(texture, GCHandleType.Weak));

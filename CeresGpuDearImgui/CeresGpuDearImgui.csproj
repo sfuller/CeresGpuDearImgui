@@ -18,6 +18,10 @@
       <PackageReference Include="ImGui.NET" Version="1.90.0.1" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="obj\Debug\" />
+    </ItemGroup>
+
     <Import Project="$(MSBuildProjectDirectory)\..\..\CeresGpu\CeresGPU.targets" />
 
 </Project>
