@@ -1,7 +1,7 @@
-using ImGuiNET;
 using CeresGpu.Graphics;
+using ImGuiNET;
 
-namespace WizKid.Imgui
+namespace CeresGpuDearImgui.Backend
 {
-    public delegate void ImDrawCallback(ImDrawListPtr list, ImDrawCmdPtr cmd, ICommandEncoder encoder);
+    public delegate void ImDrawCallback(ImDrawListPtr list, ImDrawCmdPtr cmd, ICommandEncoder encoder, ScissorRect scissor, Viewport viewport);
 }

@@ -6,7 +6,6 @@ using CeresGpuDearImgui.Backend;
 using ImGuiNET;
 using CeresGpu.Graphics;
 using CeresGpu.Graphics.Shaders;
-using WizKid.Imgui;
 using ShaderInstance = CeresGpuDearImgui.Backend.ImGuiShader.DefaultVertexLayoutInstance;
 
 namespace Metalancer.ImGuiIntegration
@@ -199,8 +198,8 @@ namespace Metalancer.ImGuiIntegration
                 return;
             }
             
-            Viewport lastViewport = encoder.CurrentDynamicViewport;
-            ScissorRect lastScissor = encoder.CurrentDynamicScissor;
+            // Viewport lastViewport = encoder.CurrentDynamicViewport;
+            // ScissorRect lastScissor = encoder.CurrentDynamicScissor;
 
             UpdateUniforms(in draw_data);
             
@@ -244,26 +243,17 @@ namespace Metalancer.ImGuiIntegration
                         if (pcmd.UserCallback == new IntPtr(-1)) {
                             //SetupRenderState(encoder, draw_data, fb_width, fb_height);
                         } else {
-                            int flags = pcmd.UserCallbackData.ToInt32();
-                            if (flags > 0) {
-                                Vector4 coords = Vector4.Zero;
-                                if (!GetGlClipCoordinates(clip_off, clip_scale, pcmd.ClipRect, fb_width, fb_height, ref coords)) {
-                                    continue;
-                                }
-                                
-                                if ((flags & 0b1) > 0) {
-                                    encoder.SetScissor(new ScissorRect((int)coords.X, (int)coords.Y, (uint)coords.Z, (uint)coords.W));
-                                    //gl.Scissor((int)coords.X, (int)coords.Y, (int)coords.Z, (int)coords.W);
-                                }
-                                if ((flags & 0b10) > 0) {
-                                    encoder.SetViewport(new Viewport((uint)coords.X, (uint)coords.Y, (uint)coords.Z, (uint)coords.W));
-                                    //gl.Viewport((int)coords.X, (int)coords.Y, (int)coords.Z, (int)coords.W);
-                                }
+                            Vector4 coords = Vector4.Zero;
+                            if (!GetGlClipCoordinates(clip_off, clip_scale, pcmd.ClipRect, fb_width, fb_height, ref coords)) {
+                                continue;
                             }
+
+                            ScissorRect scissor = new ScissorRect((int)coords.X, (int)coords.Y, (uint)coords.Z, (uint)coords.W);
+                            Viewport viewport = new Viewport((uint)coords.X, (uint)coords.Y, (uint)coords.Z, (uint)coords.W);
 
                             // TODO: Is GCHandle slow? If so, use c# 9's delegate* feature!
                             ImDrawCallback? callback = GCHandle.FromIntPtr(pcmd.UserCallback).Target as ImDrawCallback;
-                            callback?.Invoke(cmd_list, pcmd, encoder);
+                            callback?.Invoke(cmd_list, pcmd, encoder, scissor, viewport);
                         }
                     }
                     else {
