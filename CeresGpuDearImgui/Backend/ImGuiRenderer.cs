@@ -20,7 +20,7 @@ namespace Metalancer.ImGuiIntegration
 
         private readonly IPipeline<ImGuiShader, ImGuiShader.DefaultVertexBufferLayout> _pipeline;
         private readonly ImGuiShader _shader;
-        private readonly IBuffer<ImGuiShader.VertUniforms> _uniformBuffer;
+        private readonly IStreamingBuffer<ImGuiShader.VertUniforms> _uniformBuffer;
         private ITexture _texture;
         private ISampler _textureSampler;
 
@@ -141,17 +141,17 @@ namespace Metalancer.ImGuiIntegration
 
         private class Pool
         {
-            public readonly Stack<IBuffer<ImGuiShader.Vertex>> VertexBuffers = new();
-            public readonly Stack<IBuffer<ushort>> IndexBuffers = new();
+            public readonly Stack<IStreamingBuffer<ImGuiShader.Vertex>> VertexBuffers = new();
+            public readonly Stack<IStreamingBuffer<ushort>> IndexBuffers = new();
             public readonly Stack<ShaderInstance> ShaderInstances = new();    
         }
 
         private Pool _unusedPool = new();
         private Pool _usedPool = new();
 
-        private IBuffer<ImGuiShader.Vertex> GetVertexBuffer(int elementCount)
+        private IStreamingBuffer<ImGuiShader.Vertex> GetVertexBuffer(int elementCount)
         {
-            if (!_unusedPool.VertexBuffers.TryPop(out IBuffer<ImGuiShader.Vertex>? buffer)) {
+            if (!_unusedPool.VertexBuffers.TryPop(out IStreamingBuffer<ImGuiShader.Vertex>? buffer)) {
                 buffer = _renderer.CreateStreamingBuffer<ImGuiShader.Vertex>(elementCount);
             } else {
                 if (buffer.Count < elementCount) {
@@ -163,9 +163,9 @@ namespace Metalancer.ImGuiIntegration
             return buffer;
         }
 
-        private IBuffer<ushort> GetIndexBuffer(int elementCount)
+        private IStreamingBuffer<ushort> GetIndexBuffer(int elementCount)
         {
-            if (!_unusedPool.IndexBuffers.TryPop(out IBuffer<ushort>? buffer)) {
+            if (!_unusedPool.IndexBuffers.TryPop(out IStreamingBuffer<ushort>? buffer)) {
                 buffer = _renderer.CreateStreamingBuffer<ushort>(elementCount);
             } else {
                 if (buffer.Count < elementCount) {
@@ -214,8 +214,8 @@ namespace Metalancer.ImGuiIntegration
                 ImDrawListPtr cmd_list = draw_data.CmdLists[n];
 
                 // Upload vertex/index buffers
-                IBuffer<ImGuiShader.Vertex> vertexBuffer = GetVertexBuffer(cmd_list.VtxBuffer.Size);
-                IBuffer<ushort> indexBuffer = GetIndexBuffer(cmd_list.IdxBuffer.Size);
+                IStreamingBuffer<ImGuiShader.Vertex> vertexBuffer = GetVertexBuffer(cmd_list.VtxBuffer.Size);
+                IStreamingBuffer<ushort> indexBuffer = GetIndexBuffer(cmd_list.IdxBuffer.Size);
                 
                 // if (_vertexBuffer.Count < cmd_list.VtxBuffer.Size) {
                 //     _vertexBuffer.Allocate((uint) cmd_list.VtxBuffer.Size);
