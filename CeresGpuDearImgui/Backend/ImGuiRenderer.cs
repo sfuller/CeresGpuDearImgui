@@ -2,13 +2,12 @@
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using CeresGpuDearImgui.Backend;
-using ImGuiNET;
 using CeresGpu.Graphics;
 using CeresGpu.Graphics.Shaders;
+using ImGuiNET;
 using ShaderInstance = CeresGpuDearImgui.Backend.ImGuiShader.DefaultVertexLayoutInstance;
 
-namespace Metalancer.ImGuiIntegration
+namespace CeresGpuDearImgui.Backend
 {
     public sealed class ImGuiRenderer : IDisposable
     {

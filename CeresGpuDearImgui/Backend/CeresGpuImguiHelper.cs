@@ -4,7 +4,6 @@ using ImGuiNET;
 using Metalancer;
 using CeresGpu.Graphics;
 using CeresGpu.Graphics.Shaders;
-using Metalancer.ImGuiIntegration;
 
 namespace CeresGpuDearImgui.Backend
 {
