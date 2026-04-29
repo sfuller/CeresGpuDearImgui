@@ -3,5 +3,5 @@ using ImGuiNET;
 
 namespace CeresGpuDearImgui.Backend
 {
-    public delegate void ImDrawCallback(ImDrawListPtr list, ImDrawCmdPtr cmd, ICommandEncoder encoder, ScissorRect scissor, Viewport viewport);
+    public delegate void ImDrawCallback(ImDrawListPtr list, ImDrawCmdPtr cmd, IPassEncoder encoder, ScissorRect scissor, Viewport viewport);
 }

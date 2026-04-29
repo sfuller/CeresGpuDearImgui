@@ -128,7 +128,7 @@ namespace CeresGpuDearImgui.Backend
             });
         }
         
-        private void SetupRenderState(ICommandEncoder encoder, ShaderInstance shaderInstance, int fb_width, int fb_height)
+        private void SetupRenderState(IPassEncoder encoder, ShaderInstance shaderInstance, int fb_width, int fb_height)
         {
             // Setup viewport, orthographic projection matrix
             // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayPos is (0,0) for single viewport apps.
@@ -186,7 +186,7 @@ namespace CeresGpuDearImgui.Backend
             return shaderInstance;
         }
 
-        public void RenderDrawData(ICommandEncoder encoder, in ImDrawDataPtr draw_data)
+        public void RenderDrawData(IPassEncoder encoder, in ImDrawDataPtr draw_data)
         {
             CheckDisposed();
             

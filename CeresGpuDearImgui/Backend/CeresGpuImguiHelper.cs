@@ -60,7 +60,7 @@ namespace CeresGpuDearImgui.Backend
             ImGui.NewFrame();
         }
 
-        public void Render(IPass pass)
+        public void Render(IPassEncoder pass)
         {
             ImGui.Render();
             _imguiRenderer.RenderDrawData(pass, ImGui.GetDrawData());
