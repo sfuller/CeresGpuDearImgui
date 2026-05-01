@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using CeresGpu.Graphics;
 using CeresGpu.Graphics.Shaders;
 using ImGuiNET;
-using ShaderInstance = CeresGpuDearImgui.Backend.ImGuiShader.DefaultVertexLayoutInstance;
+using ShaderInstance = CeresGpuDearImgui.Backend.ImGuiShader.Instance;
 
 namespace CeresGpuDearImgui.Backend
 {
@@ -127,20 +127,24 @@ namespace CeresGpuDearImgui.Backend
                 )
             });
         }
-        
-        private void SetupRenderState(IPassEncoder encoder, ShaderInstance shaderInstance, int fb_width, int fb_height)
+
+
+        private class VertexBuffer
         {
-            // Setup viewport, orthographic projection matrix
-            // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayPos is (0,0) for single viewport apps.
-            encoder.SetViewport(new Viewport(0, 0, (uint)fb_width, (uint)fb_height));
+            public readonly IStreamingBuffer<ImGuiShader.Vertex> Buffer;
+            public readonly ImGuiShader.DefaultVertexBufferAdapter Adapter;
             
-            encoder.SetPipeline(_pipeline, shaderInstance);
+            public VertexBuffer(IRenderer renderer, int elementCount)
+            {
+                Buffer = renderer.CreateStreamingBuffer<ImGuiShader.Vertex>(elementCount);
+                Adapter = new ImGuiShader.DefaultVertexBufferAdapter();
+                Adapter.SetVertex(Buffer);
+            }
         }
-
-
+        
         private class Pool
         {
-            public readonly Stack<IStreamingBuffer<ImGuiShader.Vertex>> VertexBuffers = new();
+            public readonly Stack<VertexBuffer> VertexBuffers = new();
             public readonly Stack<IStreamingBuffer<ushort>> IndexBuffers = new();
             public readonly Stack<ShaderInstance> ShaderInstances = new();    
         }
@@ -148,20 +152,20 @@ namespace CeresGpuDearImgui.Backend
         private Pool _unusedPool = new();
         private Pool _usedPool = new();
 
-        private IStreamingBuffer<ImGuiShader.Vertex> GetVertexBuffer(int elementCount)
+        private VertexBuffer GetVertexBuffer(int elementCount)
         {
-            if (!_unusedPool.VertexBuffers.TryPop(out IStreamingBuffer<ImGuiShader.Vertex>? buffer)) {
-                buffer = _renderer.CreateStreamingBuffer<ImGuiShader.Vertex>(elementCount);
+            if (!_unusedPool.VertexBuffers.TryPop(out VertexBuffer? vbo)) {
+                vbo = new VertexBuffer(_renderer, elementCount);
             } else {
-                if (buffer.Count < elementCount) {
-                    buffer.Allocate((uint)elementCount);    
+                if (vbo.Buffer.Count < elementCount) {
+                    vbo.Buffer.Allocate((uint)elementCount);    
                 }
             }
             
-            _usedPool.VertexBuffers.Push(buffer);
-            return buffer;
+            _usedPool.VertexBuffers.Push(vbo);
+            return vbo;
         }
-
+        
         private IStreamingBuffer<ushort> GetIndexBuffer(int elementCount)
         {
             if (!_unusedPool.IndexBuffers.TryPop(out IStreamingBuffer<ushort>? buffer)) {
@@ -213,7 +217,8 @@ namespace CeresGpuDearImgui.Backend
                 ImDrawListPtr cmd_list = draw_data.CmdLists[n];
 
                 // Upload vertex/index buffers
-                IStreamingBuffer<ImGuiShader.Vertex> vertexBuffer = GetVertexBuffer(cmd_list.VtxBuffer.Size);
+                VertexBuffer vbo = GetVertexBuffer(cmd_list.VtxBuffer.Size);
+                IStreamingBuffer<ImGuiShader.Vertex> vertexBuffer = vbo.Buffer;
                 IStreamingBuffer<ushort> indexBuffer = GetIndexBuffer(cmd_list.IdxBuffer.Size);
                 
                 // if (_vertexBuffer.Count < cmd_list.VtxBuffer.Size) {
@@ -264,7 +269,6 @@ namespace CeresGpuDearImgui.Backend
                         encoder.SetScissor(new ScissorRect((int)coords.X, (int)coords.Y, (uint)coords.Z, (uint)coords.W));
 
                         ShaderInstance shaderInstance = GetShaderInstance();
-                        shaderInstance.VertexBuffers.SetVertex(vertexBuffer);
                         shaderInstance.SetVertUniforms(_uniformBuffer);
                         shaderInstance.SetTextureSampler(_textureSampler);
 
@@ -278,7 +282,11 @@ namespace CeresGpuDearImgui.Backend
                             shaderInstance.SetTexture(_nullTexture);
                         }
                         
-                        SetupRenderState(encoder, shaderInstance, fb_width, fb_height);
+                        // Setup viewport, orthographic projection matrix
+                        // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayPos is (0,0) for single viewport apps.
+                        encoder.SetViewport(new Viewport(0, 0, (uint)fb_width, (uint)fb_height));
+            
+                        encoder.SetPipeline(_pipeline, shaderInstance, vbo.Adapter);
 
                         encoder.DrawIndexedUshort(
                             indexBuffer: indexBuffer,
